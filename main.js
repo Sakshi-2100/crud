@@ -1,10 +1,17 @@
 const express = require("express");
 const axios = require("axios");
-
+const mysql = require('mysql');
 const app = express();
 const port = 3000;
 
 app.use(express.json());
+
+const pool = mysql.createPool({
+  host: 'localhost',
+  user: 'root',
+  password: 'password',
+  database: 'mydatabase',
+});
 
 // POST /createContact
 app.post("/createContact", async (req, res) => {
@@ -34,7 +41,19 @@ app.post("/createContact", async (req, res) => {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  } else {
+  } else if (data_store === 'DATABASE') {
+    const query = 'INSERT INTO contacts (first_name, last_name, email, mobile_number) VALUES (?, ?, ?, ?)';
+    const values = [first_name, last_name, email, mobile_number];
+ 
+    pool.query(query, values, (error, results) => {
+      if (error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(200).json({ message: 'Contact created successfully' });
+    }
+  });
+}
+  else {
     res.status(400).json({ error: "Invalid data_store parameter" });
   }
 });
@@ -58,7 +77,23 @@ app.get("/getContact", async (req, res) => {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  } else {
+  } else if (data_store === 'DATABASE') {
+    const query = 'SELECT * FROM contacts WHERE id = ?';
+    const values = [contact_id];
+ 
+    pool.query(query, values, (error, results) => {
+      if (error) {
+        res.status(500).json({ error: error.message });
+      } else if (results.length === 0) {
+        res.status(404).json({ error: 'Contact not found' });
+      } else {
+        const contact = results[0];
+        res.status(200).json(contact);
+      }
+    }
+    );
+  } 
+  else {
     res.status(400).json({ error: "Invalid data_store parameter" });
   }
 });
@@ -89,7 +124,22 @@ app.post("/updateContact", async (req, res) => {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  } else {
+  } 
+  else if (data_store === 'DATABASE') {
+    const query = 'UPDATE contacts SET email = ?, mobile_number = ? WHERE id = ?';
+    const values = [new_email, new_mobile_number, contact_id];
+ 
+    pool.query(query, values, (error, results) => {
+      if (error) {
+        res.status(500).json({ error: error.message });
+      } else if (results.affectedRows === 0) {
+        res.status(404).json({ error: 'Contact not found' });
+      } else {
+        res.status(200).json({ message: 'Contact updated successfully' });
+      }
+    });
+  }
+  else {
     res.status(400).json({ error: "Invalid data_store parameter" });
   }
 });
@@ -113,7 +163,21 @@ app.post("/deleteContact", async (req, res) => {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  } else {
+  } else if (data_store === 'DATABASE') {
+    const query = 'DELETE FROM contacts WHERE id = ?';
+    const values = [contact_id];
+ 
+    pool.query(query, values, (error, results) => {
+      if (error) {
+        res.status(500).json({ error: error.message });
+      } else if (results.affectedRows === 0) {
+        res.status(404).json({ error: 'Contact not found' });
+      } else {
+        res.status(200).json({ message: 'Contact deleted successfully' });
+      }
+    });
+  }
+  else {
     res.status(400).json({ error: "Invalid data_store parameter" });
   }
 });
